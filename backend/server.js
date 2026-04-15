@@ -21,13 +21,13 @@ app.use('/api/categories', require('./routes/categories'));
 app.use('/api/suppliers', require('./routes/suppliers'));
 
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
 
-process.on('exit', (code) => {
-    console.log('Process exit event with code: ', code);
+app.listen(PORT, () => {
+    console.log(`Server started on port ${PORT}`);
+}).on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.error(`Port ${PORT} is already in use. Please kill the existing process or use a different port.`);
+    } else {
+        console.error('Server error:', err);
+    }
 });
-process.on('uncaughtException', (err) => {
-    console.error('Uncaught Exception:', err);
-});
-// Keep process alive explicitly
-setInterval(() => {}, 1000 * 60 * 60);
