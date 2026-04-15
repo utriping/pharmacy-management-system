@@ -22,6 +22,17 @@ app.use("/api/suppliers", require("./routes/suppliers"));
 
 const PORT = process.env.PORT || 5000;
 
+// Global error handlers to capture unexpected crashes
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception thrown:", err);
+  // Optionally call process.exit(1) here if you want the process to stop
+});
+
+console.log(`Starting server on port ${PORT}`);
 app.listen(PORT, () => {
   console.log(`Server started on port ${PORT}`);
 });
