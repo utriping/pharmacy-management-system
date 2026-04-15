@@ -1,6 +1,6 @@
-const express = require('express');
-const cors = require('cors');
-require('dotenv').config();
+const express = require("express");
+const cors = require("cors");
+require("dotenv").config();
 
 const app = express();
 
@@ -9,25 +9,19 @@ app.use(cors());
 app.use(express.json());
 
 // Basic Route
-app.get('/', (req, res) => {
-    res.send('Pharmacy API is running');
+app.get("/", (req, res) => {
+  res.send("Pharmacy API is running");
 });
 
 // Import Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/medicines', require('./routes/medicines'));
-app.use('/api/sales', require('./routes/sales'));
-app.use('/api/categories', require('./routes/categories'));
-app.use('/api/suppliers', require('./routes/suppliers'));
+app.use("/api/auth", require("./routes/auth"));
+app.use("/api/medicines", require("./routes/medicines"));
+app.use("/api/sales", require("./routes/sales"));
+app.use("/api/categories", require("./routes/categories"));
+app.use("/api/suppliers", require("./routes/suppliers"));
 
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-    console.log(`Server started on port ${PORT}`);
-}).on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-        console.error(`Port ${PORT} is already in use. Please kill the existing process or use a different port.`);
-    } else {
-        console.error('Server error:', err);
-    }
+  console.log(`Server started on port ${PORT}`);
 });
