@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const pool = require('../config/db');
+const User = require('../models/User');
 const { auth, checkRole } = require('../middleware/authMiddleware');
 
 // @route   POST api/auth/login
@@ -10,11 +10,10 @@ const { auth, checkRole } = require('../middleware/authMiddleware');
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
     try {
-        const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
-        if (rows.length === 0) {
+        const user = await User.findOne({ email });
+        if (!user) {
             return res.status(400).json({ msg: 'Invalid Credentials' });
         }
-        const user = rows[0];
 
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
@@ -22,7 +21,7 @@ router.post('/login', async (req, res) => {
         }
 
         const payload = {
-            user: { id: user.id, role: user.role }
+            user: { id: user._id, role: user.role }
         };
 
         jwt.sign(
@@ -31,7 +30,7 @@ router.post('/login', async (req, res) => {
             { expiresIn: '5h' },
             (err, token) => {
                 if (err) throw err;
-                res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+                res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
             }
         );
     } catch (err) {
@@ -44,9 +43,9 @@ router.post('/login', async (req, res) => {
 // @desc    Get user data
 router.get('/me', auth, async (req, res) => {
     try {
-        const [rows] = await pool.query('SELECT id, name, email, role, created_at FROM users WHERE id = ?', [req.user.id]);
-        if (rows.length === 0) return res.status(404).json({ msg: 'User not found' });
-        res.json(rows[0]);
+        const user = await User.findById(req.user.id).select('-password');
+        if (!user) return res.status(404).json({ msg: 'User not found' });
+        res.json(user);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
@@ -57,8 +56,8 @@ router.get('/me', auth, async (req, res) => {
 // @desc    Get all users (Admin only)
 router.get('/users', auth, checkRole(['admin']), async (req, res) => {
     try {
-        const [rows] = await pool.query('SELECT id, name, email, role, created_at FROM users');
-        res.json(rows);
+        const users = await User.find().select('-password');
+        res.json(users);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
@@ -70,15 +69,18 @@ router.get('/users', auth, checkRole(['admin']), async (req, res) => {
 router.post('/users', auth, checkRole(['admin']), async (req, res) => {
     const { name, email, password, role } = req.body;
     try {
-        const [existing] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
-        if (existing.length > 0) return res.status(400).json({ msg: 'User already exists' });
+        const existing = await User.findOne({ email });
+        if (existing) return res.status(400).json({ msg: 'User already exists' });
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        const [result] = await pool.query(
-            'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
-            [name, email, hashedPassword, role || 'cashier']
-        );
-        res.json({ id: result.insertId, name, email, role: role || 'cashier' });
+        const newUser = new User({
+            name,
+            email,
+            password: hashedPassword,
+            role: role || 'cashier'
+        });
+        await newUser.save();
+        res.json({ id: newUser._id, name: newUser.name, email: newUser.email, role: newUser.role });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
@@ -89,7 +91,7 @@ router.post('/users', auth, checkRole(['admin']), async (req, res) => {
 // @desc    Delete a user (Admin only)
 router.delete('/users/:id', auth, checkRole(['admin']), async (req, res) => {
     try {
-        await pool.query('DELETE FROM users WHERE id = ?', [req.params.id]);
+        await User.findByIdAndDelete(req.params.id);
         res.json({ msg: 'User deleted' });
     } catch (err) {
         console.error(err.message);
